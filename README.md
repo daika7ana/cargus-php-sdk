@@ -9,14 +9,11 @@
 [![PSR Standards](https://img.shields.io/badge/PSR-7%2F17%2F18-blue?style=flat-square)](https://www.php-fig.org/)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-green?style=flat-square)](LICENSE)
 
-Typed PHP SDK for the Cargus (Urgent Cargus / UrgentOnline) courier API
+A modern, type-safe PHP SDK for the **Cargus (Urgent Cargus) API**
 
 </div>
 
-The SDK wraps the UrgentOnline API behind a PSR-18 client, builds and parses the
-JSON payloads internally, and returns readonly DTOs. Authentication uses an Azure
-API Management subscription key plus a WebExpress login that yields a 24-hour
-bearer token; the client logs in on demand and retries a `401` once.
+> 🚀 Framework-agnostic, subscription-key and WebExpress-credential based, fully typed with DTOs, and built for production integrations.
 
 ## Table of Contents
 
@@ -27,39 +24,38 @@ bearer token; the client logs in on demand and retries a `401` once.
 - [Configuration](#configuration)
 - [Authentication](#authentication)
 - [Supported Resources](#supported-resources)
-- [Error Handling](#error-handling)
 - [Framework Support](#framework-support)
 - [Testing](#testing)
 - [Documentation](#documentation)
-- [License](#license)
 
 ## Features
 
-- **All 81 API operations** — 78 resource methods across 13 accessors, plus
-  `authenticate()`, `authenticateJuridic()` and `tokenVerification()` on the
-  client. Covers AWBs, documents, tracking, pickups, pickup locations, orders,
-  geography, pricing, financial data, online shop, recipients, complaints and
-  marketing.
-- **PSR-18 transport** — bundled Guzzle client by default, any PSR-18 client by
-  injection, PSR-7 responses and PSR-17 factories throughout.
-- **Readonly DTOs** — typed request and response objects with PascalCase wire
-  serialization; list endpoints return `Collection` objects.
-- **On-demand bearer authentication** — no login at construction, re-login on
-  token expiry, and one retry after a `401`.
-- **Subscription-key-only endpoints** exposed as explicit `*NoAuth()` methods.
-- **Binary PDF documents** returned as `Support\Document` with an `isPdf()`
-  check.
-- **Framework-agnostic** — no Laravel or Symfony dependency, no service provider.
-- **Quality gates** — PHPStan level 8 over `src/`, Laravel Pint and PHPUnit.
+### Core Strengths
+
+- ✅ **All 81 API Operations** — AWBs, documents, tracking, pickups, pickup locations, orders, geography, pricing, financial data, online shop, recipients, complaints and marketing across 13 accessors, plus client-level `authenticate()`, `authenticateJuridic()` and `tokenVerification()`
+- ✅ **Bearer Authentication** — WebExpress login with a 24-hour token, re-authenticated on demand, with one retry after a `401`
+- ✅ **PSR-18 HTTP Client** — Guzzle adapter by default, bring your own client if you prefer
+- ✅ **Fully Typed DTOs** — readonly request and response objects with PascalCase wire serialization; list endpoints return `Collection` objects
+- ✅ **Binary Response Helpers** — AWB labels as base64-decoded bytes or `Support\Document` with an `isPdf()` check
+- ✅ **Subscription-Key-Only Endpoints** — explicit `*NoAuth()` methods that skip the login
+- ✅ **Static Analysis with PHPStan** — Level 8 across `src/`
+- ✅ **No Framework Coupling** — No framework in `require` and no framework imports in `src/`
+
+### Perfect For
+
+- 🎯 Domestic AWB, tracking and label workflows
+- 🎯 Shipping price calculation and pickup order management
+- 🎯 PHP applications of any framework, microservices and standalone projects
 
 ## Requirements
 
-- PHP 8.3+
-- `ext-json`
-- Composer 2
-- A PSR-7/17/18 compatible environment
+- **PHP 8.3+** with `ext-json`
+- PSR-7 / PSR-17 / PSR-18 compatible environment
+- An Azure APIM subscription key and WebExpress credentials
 
 ## Installation
+
+### Via Composer
 
 ```bash
 composer require daika7ana/cargus-php-sdk
@@ -67,7 +63,7 @@ composer require daika7ana/cargus-php-sdk
 
 ## Quick Start
 
-Pass the credentials explicitly:
+Working with the Cargus API is straightforward:
 
 ```php
 use Daika7ana\Cargus\Client;
@@ -120,72 +116,90 @@ foreach ($client->tracking()->trace($barCode) as $package) {
 }
 ```
 
-Resolve `countyId`, `localityId` and `countryId` from `geography()->countries()`,
-`counties()` and `localities()`. `serviceId` is the Cargus service code; the
-OpenAPI file does not label the values. Full flows are in
-[docs/QUICKSTART.md](docs/QUICKSTART.md).
+That's it! You have an authenticated client, resolved geography, and a typed
+AWB trace. Resolve `countyId`, `localityId` and `countryId` from
+`geography()->countries()`, `counties()` and `localities()`; `serviceId` is the
+Cargus service code, unlabelled in the OpenAPI file.
 
 ## Configuration
 
-`Client::create()` with no config calls `ClientConfig::fromEnvironment()`:
+### Base URL
+
+The client targets production at `https://urgentcargus.azure-api.net` by
+default. Only production is documented by Cargus; for a proxy or a local stub,
+pass a different `baseUrl`:
+
+```php
+$config = new ClientConfig(baseUrl: 'http://localhost:8080', /* ... */);
+```
+
+### Credentials & Environment Variables
+
+`ClientConfig::fromEnvironment()` is used by `Client::create()` and reads:
 
 | Variable | Maps to |
-|---|---|
+|----------|---------|
 | `CARGUS_USERNAME` | WebExpress username |
 | `CARGUS_PASSWORD` | WebExpress password |
 | `CARGUS_SUBSCRIPTION_KEY` | Azure APIM subscription key |
-| `CARGUS_BASE_URL` | API base URL; default `https://urgentcargus.azure-api.net` |
-| `CARGUS_TIMEOUT` | Request timeout in seconds |
+| `CARGUS_BASE_URL` | `baseUrl` |
+| `CARGUS_TIMEOUT` | `timeout` |
 
-A non-numeric `CARGUS_TIMEOUT` throws `InvalidArgumentException`. Timeout
-precedence is per-call argument → `ClientConfig::timeout` → transport
-constructor arguments → `30.0`/`10.0`. Resource methods do not take a timeout;
-use `ClientConfig`, `Client::withTimeout()`, or the low-level `Client::get()` /
-`post()` methods.
+A non-numeric `CARGUS_TIMEOUT` throws `InvalidArgumentException`. An
+authenticated call with no stored token and empty credentials, or any call with
+an empty subscription key, throws `ValidationException` locally before a
+request is sent.
 
-A bare PSR-18 client is wrapped automatically and keeps its own timeout:
+### Timeouts
 
-```php
-use Daika7ana\Cargus\Client;
-use Daika7ana\Cargus\Config\ClientConfig;
-use GuzzleHttp\Client as GuzzleClient;
+`ClientConfig::timeout` is `null` by default. Precedence: the per-call argument
+→ `ClientConfig::timeout` → the transport's own default (the bundled
+`GuzzleHttpClient` uses 30 s to respond and 10 s to connect unless you pass
+`timeout:`/`connectTimeout:`; an injected Guzzle client keeps its own
+configuration). A bare PSR-18 client keeps its own timeout and cannot receive
+the per-call argument — combining one with a non-null `ClientConfig::timeout`
+throws `InvalidArgumentException`. `Client::send()` is `@internal`, so
+resource methods expose no timeout parameter.
 
-$config = new ClientConfig(
-    username: 'your-webexpress-user',
-    password: 'your-webexpress-password',
-    subscriptionKey: 'your-azure-subscription-key',
-    // timeout stays null: the adapter cannot forward one.
-);
-
-$client = Client::create(
-    httpClient: new GuzzleClient(['timeout' => 10.0]),
-    config: $config,
-);
-```
-
-See [Configuration](docs/CONFIGURATION.md).
+For a different budget, `$slow = $client->withTimeout(30.0);` returns a new
+client sharing the transport, token store and credentials; the original keeps
+its timeout.
 
 ## Authentication
 
-Two credentials are required:
+Every request carries the Azure APIM header `Ocp-Apim-Subscription-Key`. The
+WebExpress username and password are posted to `/api/LoginUser`, and the
+response is a JSON string token valid for 24 hours, sent as
+`Authorization: Bearer <token>` on every later call.
 
-| Credential | Sent as |
-|---|---|
-| Azure APIM subscription key | `Ocp-Apim-Subscription-Key` header on every request |
-| WebExpress username and password | JSON body of `POST /api/LoginUser` |
+Nothing logs in at construction: the client re-authenticates an expired token
+before sending, and answers a first `401` by logging in and retrying once.
+`authenticateJuridic()` uses `POST /api/LoginUser/Juridic` for juridic entities,
+and re-authentication replays the endpoint of the last successful login.
+`tokenVerification()` checks the current token. Subscription-key-only endpoints
+are exposed as explicit `*NoAuth()` methods.
 
-The login response is a JSON string token valid for 24 hours, sent as
-`Authorization: Bearer <token>`. Nothing logs in at construction: the client
-re-authenticates an expired token before sending, and answers a first `401` by
-logging in and retrying once, so a new client may spend one unauthenticated round
-trip before the token is set. `authenticateJuridic()` uses
-`POST /api/LoginUser/Juridic`, and `tokenVerification()` checks the current
-token. See [Authentication](docs/AUTHENTICATION.md).
+### Token Persistence
+
+Persist and restore a token yourself:
+
+```php
+use Daika7ana\Cargus\Auth\Token;
+
+$token = $client->getToken();          // Token|null
+
+if ($token !== null) {
+    $client->setToken(new Token(       // restore
+        $token->accessToken,
+        $token->expiresAt,
+    ));
+}
+```
 
 ## Supported Resources
 
 | Accessor | Covers |
-|---|---|
+| --- | --- |
 | `awbs()` | Create, read, update, delete, reschedule, routing, returns, international AWBs |
 | `documents()` | AWB, order and invoice documents; PDF variants |
 | `tracking()` | Trace, short trace, delta events, delivery confirmation, scan, sync status |
@@ -200,10 +214,9 @@ token. See [Authentication](docs/AUTHENTICATION.md).
 | `complaints()` | Complaint status and submission |
 | `marketing()` | Updated users and email unsubscribe |
 
-Method-level endpoints, parameters and return types are in
-[Resources](docs/RESOURCES.md).
+See [docs/RESOURCES.md](docs/RESOURCES.md) for endpoint-by-endpoint details.
 
-## Error Handling
+### Error Handling
 
 ```php
 use Daika7ana\Cargus\Exceptions\AuthenticationException;
@@ -218,6 +231,7 @@ try {
     // Login failed, or a 401 survived the automatic retry.
 } catch (ValidationException $e) {
     // Missing local credentials, or the API answered 400/422.
+    print_r($e->errors);
 } catch (TransportException $e) {
     // Network failure; getPrevious() holds the cause.
 } catch (UnexpectedStatusException $e) {
@@ -227,46 +241,119 @@ try {
 }
 ```
 
-`400`/`422` become `ValidationException`, `401` becomes
-`AuthenticationException`, and every other non-2xx status becomes
-`UnexpectedStatusException`. See [Errors](docs/ERRORS.md).
+All exceptions extend `Daika7ana\Cargus\Exceptions\CargusException`, and the
+HTTP ones carry `$response`, `$retryAfter` and a typed `CargusError` under
+`$error`.
 
 ## Framework Support
 
-No Laravel, Symfony or other framework is in `require`, and no service provider
-is needed. The SDK works in framework applications and standalone PHP alike. A
-custom transport only has to implement PSR-18; the wrapped adapter cannot forward
-the SDK timeout, so leave `ClientConfig::timeout` at `null` in that case.
+### Zero Framework Dependencies
+
+The package keeps no framework in `require` and no framework imports in `src/`, so it works equally well in:
+
+- 🌐 **Laravel** applications
+- 🌐 **Symfony** projects
+- 🌐 **Standalone PHP** applications
+- 🌐 **Microservices**
+- 🌐 Any **PHP 8.3+** environment
+
+### Custom HTTP Client
+
+Pass any PSR-18 client (auto-wrapped), or the bundled `GuzzleHttpClient` with
+your own Guzzle instance:
+
+```php
+use Daika7ana\Cargus\Client;
+use Daika7ana\Cargus\Config\ClientConfig;
+use GuzzleHttp\Client as GuzzleClient;
+
+$client = Client::create(
+    httpClient: new GuzzleClient(['timeout' => 10.0]),
+    config: new ClientConfig(
+        username: 'your-webexpress-user',
+        password: 'your-webexpress-password',
+        subscriptionKey: 'your-azure-subscription-key',
+        // timeout stays null: the adapter cannot forward one.
+    ),
+);
+```
+
+A bare PSR-18 client keeps its own timeout, so a non-null
+`ClientConfig::timeout` alongside one throws `InvalidArgumentException`.
 
 ## Testing
 
+### Run Static Analysis
+
 ```bash
-composer ci         # validate --strict -> pint --test -> phpstan -> phpunit tests/Unit
-composer test:unit  # unit suite, no network
-composer test:smoke # live suite, self-skips without credentials
+composer stan
+# or
+vendor/bin/phpstan --no-progress
 ```
 
-Unit tests use a fake transport and need no credentials. The smoke suite reads
-`CARGUS_USERNAME`, `CARGUS_PASSWORD` and `CARGUS_SUBSCRIPTION_KEY`; creating an
-AWB also needs `CARGUS_SMOKE_ENABLE_WRITES=true`. There is no documented Cargus
-sandbox. See [Testing](docs/TESTING.md).
+PHPStan is configured via `phpstan.neon` and analyzes the `src/` directory at level 8.
+
+### Run Full Test Suite
+
+```bash
+composer test
+# or
+php vendor/bin/phpunit
+```
+
+Pass PHPUnit arguments through Composer with `--`:
+
+```bash
+composer test -- --filter=AwbResourceTest
+composer test -- tests/Unit/Resources
+```
+
+### Run The Same Checks As CI
+
+```bash
+composer ci
+```
+
+Available Composer scripts:
+
+- `composer pint` runs Pint in test mode
+- `composer stan` runs PHPStan against `src/`
+- `composer test` runs the full PHPUnit suite (unit plus the self-skipping smoke suite)
+- `composer test:unit` runs the unit test suite
+- `composer test:smoke` runs `tests/Smoke` against the live API (needs credentials)
+- `composer ci` runs the same local checks as CI
+
+### Test Environment Variables
+
+None for the unit suite, which is fully offline — no credentials, no network.
+`tests/Smoke` calls the live API but self-skips unless `CARGUS_USERNAME`,
+`CARGUS_PASSWORD` and `CARGUS_SUBSCRIPTION_KEY` are set; creating an AWB also
+needs `CARGUS_SMOKE_ENABLE_WRITES=true` and is deleted in `finally`. There is
+no documented Cargus sandbox. See [docs/TESTING.md](docs/TESTING.md) for the
+fake HTTP client and fixtures.
 
 ## Documentation
 
+Complete guides and references:
+
 | Guide | Purpose |
-|---|---|
-| [Quickstart](docs/QUICKSTART.md) | Install, configure, geography, pricing, AWB create and trace |
-| [Installation](docs/INSTALLATION.md) | Requirements and dependencies |
-| [Configuration](docs/CONFIGURATION.md) | `ClientConfig`, environment variables, timeouts, custom clients |
-| [Authentication](docs/AUTHENTICATION.md) | Subscription key, login, tokens, NoAuth endpoints |
-| [Usage](docs/USAGE.md) | AWB, tracking, documents, pickup locations, pricing, orders |
-| [Resources](docs/RESOURCES.md) | Every method with its endpoint and return type |
-| [DTOs](docs/DTOS.md) | DTO conventions, field maps and namespaces |
-| [Errors](docs/ERRORS.md) | Exception hierarchy, status mapping, retry guidance |
-| [Testing](docs/TESTING.md) | Unit tests, smoke tests and the helper classes |
+|-------|---------|
+| 📖 [Quickstart](docs/QUICKSTART.md) | Install, configure, geography, pricing, AWB create and trace |
+| 🔧 [Installation](docs/INSTALLATION.md) | Requirements and dependencies |
+| ⚙️ [Configuration](docs/CONFIGURATION.md) | `ClientConfig`, environment variables, timeouts, custom clients |
+| 🔐 [Authentication](docs/AUTHENTICATION.md) | Subscription key, login, tokens, NoAuth endpoints |
+| 📚 [All Docs](docs/USAGE.md) | Workflow guidance for every resource area |
+| 🔗 [Resources](docs/RESOURCES.md) | Method-level public API reference |
+| 📦 [DTOs](docs/DTOS.md) | DTO conventions, field maps and namespaces |
+| ❌ [Errors](docs/ERRORS.md) | Exception hierarchy and handling |
+| ✅ [Testing](docs/TESTING.md) | Unit, smoke and release verification |
 
-## License
+---
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+<div align="center">
 
-Author: Dan-Radu Pana.
+Made with ❤️
+
+**Questions?** [Check the docs](docs/USAGE.md) or [open an issue](../../issues)
+
+</div>
