@@ -1,0 +1,7 @@
+vendor/
+composer.lock
+.slim/deepwork/
+.codegraph/
+.phpstan.cache/
+.phpunit.cache/
+*.Zone.Identifier
