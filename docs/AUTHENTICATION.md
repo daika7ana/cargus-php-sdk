@@ -124,6 +124,7 @@ the body is the JSON literal `true`.
 | `Token::$tokenType` | `Bearer` |
 | `Token::$expiresAt` | `DateTimeImmutable`, 24 hours after login, or `null` |
 | `Token::isExpired()` | `true` when `expiresAt` is within 60 seconds |
+| `Token::toArray()` / `Token::fromArray()` | Serialize and restore a token for a custom store |
 
 `setToken('')` throws `AuthenticationException`. Tokens are kept in memory by
 default through `InMemoryTokenStore`. Pass a custom
@@ -135,6 +136,28 @@ A client configured with only the subscription key can `setToken()` a persisted
 token and call resources normally: requests with a stored token are not
 pre-validated against configured credentials. If the API rejects that token, no
 login is attempted and the `401` becomes an `AuthenticationException`.
+
+### Persisting a token
+
+`Token` exposes `toArray()`/`fromArray()`, so a token store (cache, database,
+session) can keep it between processes:
+
+```php
+use Daika7ana\Cargus\Auth\Token;
+
+// save
+$cache->set('cargus_token', $client->getToken()?->toArray());
+
+// restore
+$token = Token::fromArray($cache->get('cargus_token'));
+$client->setToken($token);
+```
+
+`Token::fromArray()` accepts `access_token`, `token_type` and `expires_at`
+(ISO-8601 or any `DateTimeImmutable`-parseable string) and throws
+`AuthenticationException` when `access_token` is missing or empty. A corrupted
+`expires_at` restores as an already-expired token, so the next request logs in
+again.
 
 ## Unauthenticated endpoints
 

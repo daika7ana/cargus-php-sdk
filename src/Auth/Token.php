@@ -38,4 +38,48 @@ final readonly class Token
             expiresAt: new DateTimeImmutable(sprintf('+%d hours', self::LIFETIME_HOURS)),
         );
     }
+
+    /**
+     * @return array{access_token: string, token_type: string, expires_at: ?string}
+     */
+    public function toArray(): array
+    {
+        return [
+            'access_token' => $this->accessToken,
+            'token_type' => $this->tokenType,
+            'expires_at' => $this->expiresAt?->format(DATE_ATOM),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $accessToken = (string) ($data['access_token'] ?? '');
+
+        if ($accessToken === '') {
+            throw new AuthenticationException('Cannot restore token: access_token is missing or empty.');
+        }
+
+        return new self(
+            accessToken: $accessToken,
+            expiresAt: self::parseDate($data['expires_at'] ?? null),
+            tokenType: (string) ($data['token_type'] ?? 'Bearer'),
+        );
+    }
+
+    private static function parseDate(mixed $value): ?DateTimeImmutable
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            return new DateTimeImmutable($value);
+        } catch (\Exception) {
+            // Corrupted cache data: treat as already expired so a fresh login is requested.
+            return new DateTimeImmutable();
+        }
+    }
 }
