@@ -136,7 +136,10 @@ final class AwbResource
      */
     public function create(AwbTurModel $awb): string
     {
-        $response = $this->client->post('/api/Awbs', $awb->toArray());
+        // The APIM gateway rejects AWB creation unless the request is routed via the Path: Crra header.
+        $request = $this->client->createRequest('POST', '/api/Awbs')->withHeader('Path', 'Crra');
+
+        $response = $this->client->send($this->client->withJsonBody($request, $awb->toArray()));
 
         if ($response->getStatusCode() === 204) {
             return '';

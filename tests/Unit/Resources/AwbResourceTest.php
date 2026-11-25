@@ -180,6 +180,7 @@ final class AwbResourceTest extends TestCase
 
         self::assertSame('POST', $http->lastRequest?->getMethod());
         self::assertSame('/api/Awbs', $http->lastRequest?->getUri()->getPath());
+        self::assertSame('Crra', $http->lastRequest?->getHeaderLine('Path'));
         self::assertAuthenticated($http->lastRequest);
         self::assertSame([
             'Sender' => ['Name' => 'Sender', 'CountyId' => 2, 'LocalityId' => 1],

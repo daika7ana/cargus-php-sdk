@@ -55,7 +55,7 @@ returns the barcode the live API echoes instead.
 | `generateReturnNoAuth()` | `POST /api/NoAuth/GenerateRwb` | `ReturnAwbModel $awb` | `string` barcode |
 
 `get()` accepts either filter or both; with neither it sends no filter.
-`create()` and `createInternational()` return `''` on `204`.
+`create()` and `createInternational()` return `''` on `204`. `create()` also sends the `Path: Crra` header the APIM gateway requires to route AWB creation.
 `routingAddress()` returns `null` when the API has no route.
 `generateReturnNoAuth()` needs only the subscription key.
 
