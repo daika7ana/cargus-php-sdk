@@ -44,6 +44,8 @@ vendor/bin/pint     # the only way to auto-fix style
   `>=2` because `Client::create()` instantiates `GuzzleHttp\Psr7\HttpFactory`.
 - Quality gates: PHPStan level 8 over `src/` (vendor/tests excluded), Laravel
   Pint (`per` preset), PHPUnit strict (`.dist`), `composer validate --strict`.
+  CI runs on branch `master` and skips every job for commits/PRs starting
+  `docs` or `chore`, and for messages containing `[skip ci]` / `[skip-ci]`.
 
 ## Layout
 

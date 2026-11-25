@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Daika7ana\Cargus\Exceptions;
 
 use Daika7ana\Cargus\DTOs\Common\Errors\CargusError;
-use Exception;
 use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 class ValidationException extends CargusException
 {
@@ -17,7 +17,7 @@ class ValidationException extends CargusException
         public readonly array $errors = [],
         string $message = '',
         int $code = 0,
-        ?Exception $previous = null,
+        ?Throwable $previous = null,
         public readonly ?ResponseInterface $response = null,
         public readonly ?int $retryAfter = null,
         public readonly ?CargusError $error = null,
