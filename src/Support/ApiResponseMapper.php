@@ -106,6 +106,29 @@ final class ApiResponseMapper
     }
 
     /**
+     * Decodes an OpenAPI `string` + `format: byte` body, failing loudly when
+     * the API answers that no document exists.
+     *
+     * @throws AuthenticationException
+     * @throws UnexpectedStatusException
+     * @throws ValidationException
+     */
+    public static function byteString(ResponseInterface $response, string $missingMessage): string
+    {
+        if ($response->getStatusCode() === 204) {
+            throw new UnexpectedStatusException($response, $missingMessage, error: self::errorFromResponse($response));
+        }
+
+        $payload = self::decodeJson($response);
+
+        if (! is_string($payload) || $payload === '') {
+            throw new UnexpectedStatusException($response, $missingMessage, error: self::errorFromResponse($response));
+        }
+
+        return self::decodeByteString($payload);
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public static function listOfArrays(mixed $value): array

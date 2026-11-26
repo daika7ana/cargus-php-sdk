@@ -23,6 +23,8 @@ use Psr\Http\Message\ResponseInterface;
  */
 final class TrackingResource
 {
+    private const string NO_SCAN = 'Cargus returned no scan: the requested AWB does not exist or has not been scanned yet.';
+
     public function __construct(private Client $client) {}
 
     /**
@@ -289,17 +291,10 @@ final class TrackingResource
      * @throws AuthenticationException
      * @throws UnexpectedStatusException
      * @throws ValidationException
-     * @throws TransportException
      */
     private function mapString(ResponseInterface $response): string
     {
-        if ($response->getStatusCode() === 204) {
-            return '';
-        }
-
-        $payload = ApiResponseMapper::decodeJson($response);
-
-        return is_string($payload) ? ApiResponseMapper::decodeByteString($payload) : '';
+        return ApiResponseMapper::byteString($response, self::NO_SCAN);
     }
 
     /**

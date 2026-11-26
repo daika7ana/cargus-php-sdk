@@ -20,6 +20,8 @@ use Psr\Http\Message\ResponseInterface;
  */
 final class DocumentResource
 {
+    private const string NO_DOCUMENT = 'Cargus returned no document: the requested AWB or document does not exist or is not available yet.';
+
     public function __construct(public readonly Client $client) {}
 
     /**
@@ -125,6 +127,7 @@ final class DocumentResource
     /**
      * `GET /api/PDF/AwbDocuments`; the spec takes the token as a query parameter.
      *
+     * @throws AuthenticationException
      * @throws UnexpectedStatusException
      * @throws ValidationException
      * @throws TransportException
@@ -150,6 +153,7 @@ final class DocumentResource
     /**
      * `GET /api/PDF/OrderDocuments`; the spec takes the token as a query parameter.
      *
+     * @throws AuthenticationException
      * @throws UnexpectedStatusException
      * @throws ValidationException
      * @throws TransportException
@@ -168,6 +172,7 @@ final class DocumentResource
     /**
      * `GET /api/PDF/InvoiceDocuments`; the spec takes the token as a query parameter.
      *
+     * @throws AuthenticationException
      * @throws UnexpectedStatusException
      * @throws ValidationException
      * @throws TransportException
@@ -188,16 +193,10 @@ final class DocumentResource
      * @throws ValidationException
      * @throws TransportException
      */
-    /**
-     * @throws AuthenticationException
-     * @throws UnexpectedStatusException
-     * @throws ValidationException
-     * @throws TransportException
-     */
     private function mapDocument(ResponseInterface $response): Document
     {
         if ($response->getStatusCode() === 204) {
-            return new Document('');
+            throw new UnexpectedStatusException($response, self::NO_DOCUMENT);
         }
 
         return ApiResponseMapper::document($response);
@@ -207,16 +206,9 @@ final class DocumentResource
      * @throws AuthenticationException
      * @throws UnexpectedStatusException
      * @throws ValidationException
-     * @throws TransportException
      */
     private function mapString(ResponseInterface $response): string
     {
-        if ($response->getStatusCode() === 204) {
-            return '';
-        }
-
-        $payload = ApiResponseMapper::decodeJson($response);
-
-        return is_string($payload) ? ApiResponseMapper::decodeByteString($payload) : '';
+        return ApiResponseMapper::byteString($response, self::NO_DOCUMENT);
     }
 }

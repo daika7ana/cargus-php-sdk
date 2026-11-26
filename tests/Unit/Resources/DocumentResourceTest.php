@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Daika7ana\Cargus\Tests\Unit\Resources;
 
 use Daika7ana\Cargus\Auth\Token;
+use Daika7ana\Cargus\Exceptions\UnexpectedStatusException;
 use Daika7ana\Cargus\Support\Document;
 use Daika7ana\Cargus\Tests\Support\Fixture;
 use Daika7ana\Cargus\Tests\Support\TestClientFactory;
@@ -178,13 +179,54 @@ final class DocumentResourceTest extends TestCase
         self::assertTrue($document->isPdf());
     }
 
-    public function testNoContentReturnsAnEmptyString(): void
+    public function testNoContentThrowsUnexpectedStatus(): void
     {
         [$client] = TestClientFactory::create(
             static fn(): ResponseInterface => Fixture::raw('', 204),
         );
         $client->setToken(new Token('abc'));
 
-        self::assertSame('', $client->documents()->awbDocuments('ABC123', 'PDF'));
+        $this->expectException(UnexpectedStatusException::class);
+        $this->expectExceptionMessage('Cargus returned no document: the requested AWB or document does not exist or is not available yet.');
+
+        $client->documents()->awbDocuments('ABC123', 'PDF');
+    }
+
+    public function testNonStringBodyThrowsUnexpectedStatus(): void
+    {
+        [$client] = TestClientFactory::create(
+            static fn(): ResponseInterface => Fixture::json(null),
+        );
+        $client->setToken(new Token('abc'));
+
+        $this->expectException(UnexpectedStatusException::class);
+        $this->expectExceptionMessage('Cargus returned no document: the requested AWB or document does not exist or is not available yet.');
+
+        $client->documents()->orderDocuments(42);
+    }
+
+    public function testPdfNoContentThrowsUnexpectedStatus(): void
+    {
+        [$client] = TestClientFactory::create(
+            static fn(): ResponseInterface => Fixture::raw('', 204),
+        );
+
+        $this->expectException(UnexpectedStatusException::class);
+        $this->expectExceptionMessage('Cargus returned no document: the requested AWB or document does not exist or is not available yet.');
+
+        $client->documents()->pdfAwbDocuments('tok', 'ABC123');
+    }
+
+    public function testEmptyStringBodyThrowsUnexpectedStatus(): void
+    {
+        [$client] = TestClientFactory::create(
+            static fn(): ResponseInterface => Fixture::json(''),
+        );
+        $client->setToken(new Token('abc'));
+
+        $this->expectException(UnexpectedStatusException::class);
+        $this->expectExceptionMessage('Cargus returned no document: the requested AWB or document does not exist or is not available yet.');
+
+        $client->documents()->orderDocuments(42);
     }
 }

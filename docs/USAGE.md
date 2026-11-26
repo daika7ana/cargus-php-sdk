@@ -193,7 +193,8 @@ foreach ($packages as $package) {
 collection. `syncStatusByBarCode()` returns `null` on `204`.
 
 `confirmDelivery()` sends everything in the query string. `scan()` returns the
-decoded `format: byte` bytes as a string.
+decoded `format: byte` bytes as a string and throws `UnexpectedStatusException`
+on `204` or a non-string/empty body.
 
 ## Labels and documents
 
@@ -218,7 +219,8 @@ file_put_contents('awb-label.pdf', $document);
 `type` is the document type understood by the API (`'PDF'` in the smoke suite).
 The OpenAPI file declares the response as a `string` with `format: byte`; the SDK
 base64-decodes the body and returns the raw bytes (a value that is not valid
-base64 is returned unchanged).
+base64 is returned unchanged). A `204`, non-string or empty body throws
+`UnexpectedStatusException`.
 
 ### PDF documents
 
@@ -253,7 +255,7 @@ file_put_contents('awb-label.pdf', $pdf->contents);
 These three return `Daika7ana\Cargus\Support\Document`, not a string.
 `Document::$contents` is the raw body, `Document::$mimeType` is the
 `Content-Type` header or `null`, and `isPdf()` checks the body for a `%PDF`
-prefix. A `204` yields an empty `Document`.
+prefix. A `204` throws `UnexpectedStatusException`.
 
 ## Pickup locations
 

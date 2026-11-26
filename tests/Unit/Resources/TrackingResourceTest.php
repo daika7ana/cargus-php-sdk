@@ -325,6 +325,19 @@ final class TrackingResourceTest extends TestCase
         self::assertSame(TestClientFactory::SUBSCRIPTION_KEY, $http->lastRequest?->getHeaderLine('Ocp-Apim-Subscription-Key'));
     }
 
+    public function testScanNoContentThrowsUnexpectedStatus(): void
+    {
+        [$client] = TestClientFactory::create(
+            static fn(): ResponseInterface => Fixture::raw('', 204),
+        );
+        $client->setToken(new Token('abc'));
+
+        $this->expectException(UnexpectedStatusException::class);
+        $this->expectExceptionMessage('Cargus returned no scan: the requested AWB does not exist or has not been scanned yet.');
+
+        $client->tracking()->scan('ABC123');
+    }
+
     public function testSyncStatusMapsAwbCashList(): void
     {
         [$client, $http] = TestClientFactory::create(

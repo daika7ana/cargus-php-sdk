@@ -72,12 +72,15 @@ returns the barcode the live API echoes instead.
 | `pdfOrderDocuments()` | `GET /api/PDF/OrderDocuments` | `string $token`, `int $orderId`, `int $docType = 0` | `Document` |
 | `pdfInvoiceDocuments()` | `GET /api/PDF/InvoiceDocuments` | `string $token`, `int $invoiceId` | `Document` |
 
-The five JSON document methods return the decoded bytes and `''` on `204`. The
-OpenAPI file declares them as `string` with `format: byte`; the SDK
-base64-decodes the body, returning it unchanged if it is not valid base64. The
+The five JSON document methods return the decoded bytes and throw
+`UnexpectedStatusException` on `204` or a non-string/empty body; Cargus sends
+no error detail, so a missing or unavailable barcode is the likely cause
+(unverified live). The OpenAPI file declares them as `string` with `format: byte`;
+the SDK base64-decodes the body, returning it unchanged if it is not valid
+base64. The
 three `pdf*` methods use NoAuth, pass the token as the
 `Token` query parameter, and return `Daika7ana\Cargus\Support\Document`; a `204`
-yields an empty `Document`.
+throws `UnexpectedStatusException`.
 
 ## Tracking — `$client->tracking()`
 
@@ -96,7 +99,10 @@ yields an empty `Document`.
 | `syncStatusByBarCode()` | `GET /api/AwbStatus/GetAwbSyncStatusByBarCode` | `string $barCode` | `?AwbCash` |
 
 `traceNoAuth()` and `shortTraceNoAuth()` need only the subscription key.
-`scan()` returns the decoded `format: byte` bytes as a string, `''` on `204`.
+`scan()` returns the decoded `format: byte` bytes as a string and throws
+`UnexpectedStatusException` on `204` or a non-string/empty body — no error
+detail comes back, so a missing or unscanned AWB is the likely cause
+(unverified live).
 `syncStatusByBarCode()` returns `null` on `204`.
 `deltaEvents()` returns an empty `Collection` on `204`.
 
@@ -249,8 +255,6 @@ and `sendNoAuth()` are `@internal`. See
 | `Collection`-returning methods: `awbs()` reads and `withGetAwb()`, `tracking()` traces and `syncStatus*`, `financial()` lists, `geography()` lists, `orders()` lists, `pickupLocations()` lists, `recipients()->list()`, `onlineShop()->userWorkstations()`, `pricing()->priceTables()` | Empty `Collection` |
 | `awbs()->routingAddress()`, `orders()->getByOrderId()`, `tracking()->syncStatusByBarCode()` | `null` |
 | `awbs()->create()`, `awbs()->createInternational()` | `''` |
-| `documents()->awbDocuments*()`, `orderDocuments*()`, `invoiceDocuments()`, `tracking()->scan()` | `''` |
-| `documents()->pdf*()` | Empty `Document` (`contents: ''`) |
 | `pickup()->requestWithGetAwb()` | `[]` |
 | `pickup()->requestIndividualNoAuth()` | `''` |
 | `pickupLocations()->delete()` | `0` |

@@ -16,7 +16,7 @@ Exception
 |---|---|
 | `AuthenticationException` | Login failed, or an authenticated request answered `401` after the one automatic re-login |
 | `ValidationException` | Local credentials are missing, or the API answered `400`/`422` |
-| `UnexpectedStatusException` | Any other non-2xx status, a JSON endpoint returned a body that is not valid JSON, or an AWB boolean write returned a non-boolean payload |
+| `UnexpectedStatusException` | Any other non-2xx status, a JSON endpoint returned a body that is not valid JSON, an AWB boolean write returned a non-boolean payload, or a document/scan request answered `204` or a non-string/empty body |
 | `TransportException` | DNS, TLS, timeout, connection reset or another transport failure |
 
 ## Status mapping
@@ -175,7 +175,7 @@ mapper. A foreign PSR-18 client that throws on 4xx/5xx is wrapped as
 | `authenticate()`, `authenticateJuridic()`, `tokenVerification()` | Safe to retry |
 | `awbs()->create()`, `createInternational()`, `withGetAwb()`, `pickup()->request*()`, `orders()->create*()` | Reconcile first: a transport failure does not prove the request did not reach Cargus |
 | `delete()`, `cancel()`, `reschedule()`, `updateParcelCodes()`, `updateReference()`, `pickupLocations()->save()`/`update()`/`delete()` | Retry only after confirming the current state |
-| `documents()->pdf*()` | Safe to retry; a `204` yields an empty `Document` |
+| `documents()->pdf*()` | Safe to retry; a `204` throws `UnexpectedStatusException` (the document is likely missing) |
 
 `pickup()->request()` dispatches a physical courier: never retry it
 automatically.

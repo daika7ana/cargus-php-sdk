@@ -147,15 +147,17 @@ Resource accessors: `awbs()`, `documents()`, `tracking()`, `pickup()`,
   empty JSON array body — unverified whether the live API tolerates it.
 - 204 handling: list endpoints map 204 to an empty collection, single-item
   lookups (`GetByOrderId`, `GetAwbSyncStatusByBarCode`, `GetRoutingAddress`) to
-  `null`, writes to `''`/`0`/`[]` per their declared type.
+  `null`, writes to `''`/`0`/`[]` per their declared type. The JSON document
+  methods throw `UnexpectedStatusException` on `204` and on a non-string or
+  empty `200` body instead of returning `''`; so do `tracking()->scan()` and the
+  `documents()->pdf*()` methods, whose `204` used to yield an empty `Document`.
 - `/api/AwbDocuments`, `/api/AwbDocuments/GetDHL`, `/api/OrderDocuments`,
   `/api/InvoiceDocuments` and `/api/AwbScan` declare `string` + `format: byte`
   bodies; verified live as base64, which the SDK decodes to raw bytes (a
   non-base64 payload passes through unchanged).
 - `/api/PDF/{AwbDocuments,OrderDocuments,InvoiceDocuments}` take the token as
   a `Token` query parameter (no bearer header); the SDK routes them through
-  `getNoAuth()` with the caller-supplied token and maps 204 to an empty
-  `Document`.
+  `getNoAuth()` with the caller-supplied token and throws on `204`.
 - `POST /api/Awbs` and `POST /api/AwbPickup` return a bare JSON string
   barcode; `/api/AwbPickup/WithGetAwb` returns an untyped object (204 → `[]`);
   `POST /api/CashReceipts` returns a bare integer id.

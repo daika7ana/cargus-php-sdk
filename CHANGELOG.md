@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-26
+
+### Changed
+
+- **Breaking:** the five JSON document methods (`awbDocuments()`, `awbDocumentsDhl()`, `orderDocuments()`, `orderDocumentsByDate()`, `invoiceDocuments()`) throw `UnexpectedStatusException` on `204` and on a non-string or empty body instead of returning `''`, with a message explaining that the AWB is likely missing or not available yet.
+- **Breaking:** `tracking()->scan()` and the `documents()->pdf*()` methods throw `UnexpectedStatusException` on `204` instead of returning `''` or an empty `Document`.
+
 ## [1.0.1] - 2026-11-25
 
 ### Added
