@@ -131,7 +131,7 @@ class Client
      * is shared through the store, so the derived client starts with the same
      * token instead of logging in again.
      */
-    public function withTimeout(?float $timeout): static
+    public function withTimeout(?float $timeout): self
     {
         if ($timeout !== null && $this->httpClient instanceof Psr18HttpClientAdapter) {
             throw new \InvalidArgumentException('ClientConfig::timeout cannot be applied to a foreign PSR-18 client; configure the timeout on that client or leave it null.');
